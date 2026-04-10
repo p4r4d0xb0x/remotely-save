@@ -2,7 +2,12 @@ import { DEFAULT_DEBUG_FOLDER, type Entity } from "./baseTypes";
 import { FakeFs } from "./fsAll";
 
 import { TFile, TFolder, type Vault } from "obsidian";
-import { mkdirpInVault, statFix, unixTimeToStr } from "./misc";
+import {
+  isSpecialFolderNameToSkip,
+  mkdirpInVault,
+  statFix,
+  unixTimeToStr,
+} from "./misc";
 import { listFilesInObsFolder } from "./obsFolderLister";
 import type { Profiler } from "./profiler";
 
@@ -98,6 +103,78 @@ export class FakeFsLocal extends FakeFs {
     }
 
     this.profiler?.insert("finish transforming walk for local");
+
+    // Dot-prefix folders (e.g. .makemd, .space, .claude) are not returned by
+    // vault.getAllLoadedFiles() because Obsidian intentionally ignores them.
+    // We discover them via vault.adapter.list("/") and walk them recursively
+    // using the same low-level adapter API used by obsFolderLister.
+    const rootListing = await this.vault.adapter.list("/");
+    const dotPrefixFolders = rootListing.folders.filter((f) => {
+      const name = f.split("/").filter(Boolean).pop() ?? "";
+      return (
+        name.startsWith(".") &&
+        name !== this.configDir &&
+        !isSpecialFolderNameToSkip(f, [])
+      );
+    });
+
+    if (dotPrefixFolders.length > 0) {
+      this.profiler?.insert(
+        `found ${dotPrefixFolders.length} dot-prefix folders to walk`
+      );
+      const queue: string[] = [...dotPrefixFolders];
+      while (queue.length > 0) {
+        const current = queue.pop()!;
+        const st = await statFix(this.vault, current);
+        if (st === undefined || st === null) {
+          continue;
+        }
+        const isFolder = st.type === "folder";
+        const key = isFolder ? `${current}/` : current;
+
+        if (isFolder) {
+          local.push({
+            key,
+            keyRaw: key,
+            size: 0,
+            sizeRaw: 0,
+          });
+          const children = await this.vault.adapter.list(current);
+          for (const child of children.folders) {
+            if (!isSpecialFolderNameToSkip(child, [])) {
+              queue.push(child);
+            }
+          }
+          for (const child of children.files) {
+            if (!isSpecialFolderNameToSkip(child, [])) {
+              queue.push(child);
+            }
+          }
+        } else {
+          let mtime = st.mtime;
+          if (mtime <= 0) {
+            mtime = st.ctime;
+          }
+          if (mtime === 0) {
+            mtime = undefined as any;
+          }
+          if (mtime === undefined) {
+            throw Error(
+              `Your file has last modified time 0: ${current}, don't know how to deal with it`
+            );
+          }
+          local.push({
+            key: current,
+            keyRaw: current,
+            mtimeCli: mtime,
+            mtimeSvr: mtime,
+            size: st.size,
+            sizeRaw: st.size,
+          });
+        }
+      }
+      this.profiler?.insert("finish walking dot-prefix folders");
+    }
 
     if (this.syncConfigDir || this.syncBookmarks) {
       this.profiler?.insert("into syncConfigDir or syncBookmarks");
