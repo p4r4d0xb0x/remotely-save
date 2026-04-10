@@ -244,8 +244,10 @@ export const checkIsSkipItemOrNotByName = (
     }
   }
 
+  // Dot-prefix folders/files (e.g. .space, .makemd, .claude) are no longer
+  // treated as hidden. They are synced by default. Folders like .git and
+  // .DS_Store are still skipped via isSpecialFolderNameToSkip() above.
   const checkIsHidden =
-    isHiddenPath(key, true, false) ||
     (!syncUnderscoreItems && isHiddenPath(key, false, true)) ||
     key === "/" ||
     key === DEFAULT_FILE_NAME_FOR_METADATAONREMOTE ||

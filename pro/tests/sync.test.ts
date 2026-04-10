@@ -126,6 +126,69 @@ describe("Sync: checkIsSkipItemOrNotByName", () => {
     // assert.ok(!isSkip);
   });
 
+  it("should NOT skip dot-prefix folders by default", async () => {
+    // .space folder should sync
+    let isSkip = checkIsSkipItemOrNotByName(
+      ".space/",
+      false,
+      false,
+      false,
+      ".obsidian",
+      /*    ignorePaths */ [],
+      /* onlyAllowPaths */ []
+    ).finalIsIgnored;
+    assert.ok(!isSkip);
+
+    // .makemd/file.md should sync
+    isSkip = checkIsSkipItemOrNotByName(
+      ".makemd/file.md",
+      false,
+      false,
+      false,
+      ".obsidian",
+      /*    ignorePaths */ [],
+      /* onlyAllowPaths */ []
+    ).finalIsIgnored;
+    assert.ok(!isSkip);
+
+    // .claude should sync
+    isSkip = checkIsSkipItemOrNotByName(
+      ".claude/config.json",
+      false,
+      false,
+      false,
+      ".obsidian",
+      /*    ignorePaths */ [],
+      /* onlyAllowPaths */ []
+    ).finalIsIgnored;
+    assert.ok(!isSkip);
+
+    // dot-prefix file at root should sync
+    isSkip = checkIsSkipItemOrNotByName(
+      ".hidden-note.md",
+      false,
+      false,
+      false,
+      ".obsidian",
+      /*    ignorePaths */ [],
+      /* onlyAllowPaths */ []
+    ).finalIsIgnored;
+    assert.ok(!isSkip);
+  });
+
+  it("should still skip dot-prefix folders if in ignore list", async () => {
+    const isSkip = checkIsSkipItemOrNotByName(
+      ".space/file.md",
+      false,
+      false,
+      false,
+      ".obsidian",
+      /*    ignorePaths */ ["\\.space"],
+      /* onlyAllowPaths */ []
+    ).finalIsIgnored;
+    assert.ok(isSkip);
+  });
+
   it("should detect the name by two lists together", async () => {
     // should skip because we ignore the path
     let isSkip = checkIsSkipItemOrNotByName(
