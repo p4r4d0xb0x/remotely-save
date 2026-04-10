@@ -30,6 +30,10 @@ module.exports = {
     libraryTarget: "commonjs",
   },
   plugins: [
+    // Map node: URI scheme imports to polyfills (Node.js v18+ style)
+    new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
+      resource.request = resource.request.replace(/^node:/, "");
+    }),
     new webpack.DefinePlugin({
       "global.DEFAULT_DROPBOX_APP_KEY": `"${DEFAULT_DROPBOX_APP_KEY}"`,
       "global.DEFAULT_ONEDRIVE_CLIENT_ID": `"${DEFAULT_ONEDRIVE_CLIENT_ID}"`,
@@ -127,6 +131,7 @@ module.exports = {
       vm: false,
       // zlib: require.resolve("browserify-zlib"),
     },
+
   },
   externals: {
     obsidian: "commonjs2 obsidian",

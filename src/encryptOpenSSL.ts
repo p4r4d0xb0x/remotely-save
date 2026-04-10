@@ -9,7 +9,7 @@ export const MAGIC_ENCRYPTED_PREFIX_BASE32 = "KNQWY5DFMRPV";
 export const MAGIC_ENCRYPTED_PREFIX_BASE64URL = "U2FsdGVkX";
 
 const getKeyIVFromPassword = async (
-  salt: Uint8Array,
+  salt: Uint8Array<ArrayBuffer>,
   password: string,
   rounds: number = DEFAULT_ITER
 ) => {
@@ -21,7 +21,7 @@ const getKeyIVFromPassword = async (
     ["deriveKey", "deriveBits"]
   );
 
-  const k2 = await window.crypto.subtle.deriveBits(
+  const k2 = (await window.crypto.subtle.deriveBits(
     {
       name: "PBKDF2",
       salt: salt,
@@ -30,7 +30,7 @@ const getKeyIVFromPassword = async (
     },
     k1,
     256 + 128
-  );
+  )) as ArrayBuffer;
 
   return k2;
 };
@@ -41,7 +41,7 @@ export const encryptArrayBuffer = async (
   rounds: number = DEFAULT_ITER,
   saltHex = ""
 ) => {
-  let salt: Uint8Array;
+  let salt: Uint8Array<ArrayBuffer>;
   if (saltHex !== "") {
     salt = hexStringToTypedArray(saltHex);
   } else {
